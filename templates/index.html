@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hate Speech Detector</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            text-align: center; 
+            padding: 20px; 
+            display: flex;
+            justify-content: space-between;
+        }
+        #left-section {
+            width: 50%;
+            text-align: center;
+        }
+        #right-section {
+            width: 40%;
+            text-align: left;
+            border-left: 2px solid #ccc;
+            padding-left: 20px;
+        }
+        input, button, select { margin: 10px; padding: 10px; font-size: 16px; }
+        #result { font-weight: bold; margin-top: 20px; }
+        .test-case { margin-bottom: 10px; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+    <!-- Left Section -->
+    <div id="left-section">
+        <h2>Hate Speech Detector</h2>
+        <input type="text" id="inputText" placeholder="Enter a sentence...">
+        <button onclick="checkText()">Check</button>
+        <p id="result"></p>
+
+        <h3>Provide Feedback</h3>
+        <select id="feedbackLabel">
+            <option value="hateful">Hateful</option>
+            <option value="offensive">Offensive</option>
+            <option value="neutral">Neutral</option>
+            <option value="profanity">Profanity</option>
+        </select>
+        <button onclick="submitFeedback()">Submit Feedback</button>
+
+        <h3>Download Dataset</h3>
+        <button onclick="downloadDataset()">Download CSV</button>
+
+        <!-- Disclaimer -->
+        <p style="margin-top: 20px; font-size: 12px; color: red;">
+            Disclaimer: This model and tool are designed for educational purposes to learn about machine learning models like XGBoost. It is **not a fully functional hate speech detector**.
+        </p>
+    </div>
+
+    <!-- Right Section (Test Cases) -->
+    <div id="right-section">
+        <h3>Test Cases (XGBoost Predictions)</h3>
+        <div id="testCases"></div>
+    </div>
+
+    <script>
+        function checkText() {
+            let inputText = document.getElementById("inputText").value;
+
+            fetch("/predict", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text: inputText })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    document.getElementById("result").innerText = "Error: " + data.error;
+                } else {
+                    document.getElementById("result").innerText = "Prediction: " + data.prediction;
+                }
+            })
+            .catch(error => console.error("Error:", error));
+        }
+
+        function submitFeedback() {
+            let inputText = document.getElementById("inputText").value;
+            let feedbackLabel = document.getElementById("feedbackLabel").value;
+
+            fetch("/submit-feedback", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text: inputText, label: feedbackLabel })
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+            })
+            .catch(error => console.error("Error:", error));
+        }
+
+        function downloadDataset() {
+            window.location.href = "/download-dataset";
+        }
+
+        function loadTestCases() {
+            const testCases = [
+                "I hate you!",
+                "You are amazing!",
+                "This is so stupid.",
+                "You should be punished for this!",
+                "Have a great day!",
+                "Shut up, you idiot!",
+                "I will kill you!",
+                "This is a very bad idea.",
+                "F*** off!",
+                "You're a terrible person!",
+                "Nice work, well done!"
+            ];
+
+            const testCaseContainer = document.getElementById("testCases");
+            testCaseContainer.innerHTML = "<p>Loading test cases...</p>";
+
+            let fetchPromises = testCases.map(text => {
+                return fetch("/predict", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ text: text })
+                })
+                .then(response => response.json())
+                .then(data => ({ text, prediction: data.prediction }));
+            });
+
+            Promise.all(fetchPromises)
+                .then(results => {
+                    testCaseContainer.innerHTML = results.map(tc => 
+                        `<div class="test-case"><b>Input:</b> "${tc.text}" → <b>Prediction:</b> ${tc.prediction}</div>`
+                    ).join("");
+                })
+                .catch(error => {
+                    console.error("Error loading test cases:", error);
+                    testCaseContainer.innerHTML = "<p>Error loading test cases.</p>";
+                });
+        }
+
+        // Load test cases when page loads
+        window.onload = loadTestCases;
+    </script>
+
+</body>
+</html>
